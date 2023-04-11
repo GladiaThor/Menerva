@@ -1,5 +1,7 @@
 import React, { FC } from 'react'
 import { Divider, Drawer, Grid } from '@mui/material'
+import GameDetailsOverviewHeader from './GameDetailsOverviewHeader'
+import StatCard from './StatCard'
 import CharacterCard from './CharacterCard'
 
 const OverviewDrawer: FC = () => {
@@ -22,9 +24,11 @@ const OverviewDrawer: FC = () => {
     >
       <Grid container direction='column' alignItems='center'>
         <Divider />
+        <GameDetailsOverviewHeader />
         <CharacterCard />
+        <StatCard />
       </Grid>
     </Drawer>
   )
 }
-export default OverviewDrawer
+export default OverviewDrawer;
