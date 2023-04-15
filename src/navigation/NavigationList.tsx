@@ -1,64 +1,70 @@
 import { NavigationOption } from './NavigationOption'
 import * as React from 'react'
-import {
-  ActionButtonGroup,
-  ActionButtonGroupHeader
-} from '../styles/ButtonStyles'
-import { Button } from '@mui/material'
 import { useGameStateContext } from '../GameState/useGameStateContext'
+import { ActionOption } from '../action/ActionOption'
+import { Instance } from 'mobx-state-tree'
+import { GameState } from '../GameState/GameState'
+import ActionButtonGroup from '../ActionButton/ActionButtonGroup'
+import { FC, useEffect, useState } from 'react'
 
-const NavigationList = (
-  navigationOptions: NavigationOption[],
+interface NavigationListProps {
+  navigationOptions: NavigationOption[]
   navigationHeader?: string
-) => {
-  const { gameState } = useGameStateContext()
+}
 
-  const navAction = (navOption: NavigationOption) => {
-    if (!gameState?.getCurrentScene()) {
-      return
-    }
-    if (gameState?.currentSceneId !== navOption.destinationRoomId) {
-      if (navOption.preTravelEffect) navOption.preTravelEffect()
-      gameState?.navigateToScene(navOption.destinationRoomId)
-      if (navOption.postTravelEffect) navOption.postTravelEffect()
-    } else {
-      console.log(`Already in room ${navOption.destinationRoomId}`)
+const NavigationList: FC<NavigationListProps> = ({
+  navigationOptions,
+  navigationHeader
+}) => {
+  const { gameState } = useGameStateContext()
+  const [actions, setActions] = useState<ActionOption[]>([])
+
+  useEffect(() => {
+    console.log('NavigationList useEffect called')
+    setActions(
+      navigationOptions.map((navOption) => createActionOption(navOption))
+    )
+  }, [navigationOptions])
+
+  const resolveNavActionName = (destinationId: string): string => {
+    const name = gameState?.getSceneName(destinationId)
+    if (!name)
+      console.warn(
+        `Scene ${destinationId} is not available. You may have forgotten to add it to the storybook.`
+      )
+    return name || destinationId
+  }
+
+  const resolveActionEffect = (
+    navOption: NavigationOption
+  ): ((gameState: Instance<typeof GameState> | undefined | null) => void) => {
+    return (gameState: Instance<typeof GameState> | undefined | null) => {
+      if (gameState?.currentSceneId !== navOption.destinationRoomId) {
+        if (navOption.preTravelEffect) navOption.preTravelEffect()
+        gameState?.navigateToScene(navOption.destinationRoomId)
+        if (navOption.postTravelEffect) navOption.postTravelEffect()
+      } else {
+        console.log(`Already in room ${navOption.destinationRoomId}`)
+      }
     }
   }
 
-  // @ts-ignore
-  const createNavButtonIfSceneAvailable = (navOption: NavigationOption) => {
-    if (gameState?.isSceneAvailable(navOption.destinationRoomId)) {
-      return (
-        <Button
-          onClick={() => navAction(navOption)}
-          key={navOption.destinationRoomId}
-        >
-          {gameState.getSceneName(navOption.destinationRoomId)}
-        </Button>
-      )
-    } else {
-      console.warn(
-        `Scene ${navOption.destinationRoomId} is not available. You may have forgotten to add it to the storybook.`
-      )
+  const createActionOption = (navOptions: NavigationOption): ActionOption => {
+    return {
+      name: resolveNavActionName(navOptions.destinationRoomId),
+      effect: resolveActionEffect(navOptions),
+      enableCondition: navOptions.enableCondition,
+      executionTime: navOptions.travelTime
     }
   }
 
   return (
-    <ActionButtonGroup orientation='vertical' color='primary'>
-      <ActionButtonGroupHeader
-        disableRipple
-        disableTouchRipple
-        disableElevation
-        disableFocusRipple
-        variant='contained'
-      >
-        {navigationHeader || 'Travel to...'}
-      </ActionButtonGroupHeader>
-      {navigationOptions.map((navigation) =>
-        createNavButtonIfSceneAvailable(navigation)
-      )}
-    </ActionButtonGroup>
+    <ActionButtonGroup
+      header={navigationHeader || 'Travel to...'}
+      color='primary'
+      actionOptions={actions}
+      actionGroupKey='navigation'
+    />
   )
 }
 

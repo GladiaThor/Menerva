@@ -6,4 +6,5 @@ export interface ActionOption {
   name: string
   effect: (gameState: Instance<typeof GameState> | undefined | null) => void
   enableCondition?: Predicate[]
+  executionTime?: number
 }
