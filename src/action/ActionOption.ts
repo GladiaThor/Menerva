@@ -1,6 +1,9 @@
-import { GameStateContext } from '../GameState/GameContext'
+import { Predicate } from '../Predicate/Predicate'
+import { Instance } from 'mobx-state-tree'
+import { GameState } from '../GameState/GameState'
 
 export interface ActionOption {
   name: string
-  effect: (gameContextProps: GameStateContext) => void
+  effect: (gameState: Instance<typeof GameState> | undefined | null) => void
+  enableCondition?: Predicate[]
 }
