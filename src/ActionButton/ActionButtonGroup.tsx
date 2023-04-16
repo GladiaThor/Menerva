@@ -9,7 +9,7 @@ import { ActionButtonProps } from './ActionButtonProps'
 import { ActionOption } from '../action/ActionOption'
 import { useGameStateContext } from '../GameState/useGameStateContext'
 import { onPatch } from 'mobx-state-tree'
-import { ComperatorB } from '../Predicate/Comperator'
+import { ComperatorB } from '../Predicate/Comparator'
 import { observer } from 'mobx-react-lite'
 
 interface ActionButtonGroupProps {

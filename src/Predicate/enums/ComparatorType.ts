@@ -1,8 +1,8 @@
-export enum ComparableState{
+export enum ComparatorType {
   CHARACTER_STAT = 0,
   CHARACTER_TRAIT = 1,
   CHARACTER_ITEM = 2,
   CHARACTER_SKILL = 3,
   CHARACTER_PROPERTIES = 4,
-  SCENE_PROPERTIES = 5,
+  SCENE_PROPERTIES = 5
 }
