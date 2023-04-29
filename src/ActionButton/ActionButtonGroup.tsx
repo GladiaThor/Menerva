@@ -9,8 +9,8 @@ import { ActionButtonProps } from './ActionButtonProps'
 import { ActionOption } from '../action/ActionOption'
 import { useGameStateContext } from '../GameState/useGameStateContext'
 import { onPatch } from 'mobx-state-tree'
-import { ComperatorB } from '../Predicate/Comparator'
 import { observer } from 'mobx-react-lite'
+import { Comparator } from '../Predicate'
 
 interface ActionButtonGroupProps {
   color?: OverridableStringUnion<
@@ -48,7 +48,7 @@ const ActionButtonGroup: FC<ActionButtonGroupProps> = ({
   const prepareAndSetActions = () => {
     const mappedActions = actionOptions
       .map((action) => {
-        const comparisonResult = ComperatorB(action.enableCondition, gameState)
+        const comparisonResult = Comparator(action.enableCondition, gameState)
         return {
           disabled: comparisonResult.isDisabled,
           hidden: comparisonResult.isHidden,

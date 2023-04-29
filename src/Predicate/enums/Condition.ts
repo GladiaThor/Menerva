@@ -6,5 +6,5 @@ export enum Condition {
   GREATER_THAN_OR_EQUAL_TO = 4,
   LESS_THAN_OR_EQUAL_TO = 5,
   CONTAINS = 6,
-  DOES_NOT_CONTAIN = 7,
+  DOES_NOT_CONTAIN = 7
 }

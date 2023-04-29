@@ -1,121 +1,16 @@
-import { Predicate } from './Predicate'
 import { Condition } from './enums/Condition'
-import { isMatchWith } from 'lodash'
 import { getSnapshot, Instance, resolveIdentifier } from 'mobx-state-tree'
 import { GameState } from '../GameState/GameState'
 import { Character } from '../character/Character'
 import { ComparatorType } from './enums/ComparatorType'
 import { Scene } from '../UI/DefaultScenographyService/Scene'
+import { Predicate } from './types/Predicate'
+import { ComparisonCondition } from './types/ComparisonCondition'
+import { PredicateComparisonResult } from './types/PredicateComparisonResult'
 
-export interface ComparisonResult {
-  isDisabled: boolean
-  isHidden: boolean
-  disableTexts?: string[]
-}
-
-//Types taken from lodash, will need to be updated if lodash is updated
-type PropertyName = string | number | symbol
-type isMatchWithCustomizer = (
-  value: any,
-  other: any,
-  indexOrKey: PropertyName,
-  object: object,
-  source: object
-) => boolean | undefined
-type isMatchType = (object: object, source: object) => boolean
-type isMatchWithCustomizerType = (
-  object: object,
-  source: object,
-  customizer: isMatchWithCustomizer
-) => boolean
-
-export interface ComparisonInput {
-  comparisonFunction: isMatchType | isMatchWithCustomizerType
-  customizer: (objValue: any, srcValue: any) => boolean
-  predicateObject: any | undefined
-  predicateValue: any | undefined
-  disableText: string | undefined
-  hideOnDisable: boolean | undefined
-}
-
-/**
- * Resolved the defines comparison in the comparison input
- * @param comparisonFunction The function that compares the two objects
- * @param predicateObject The object that is the source of the comparison
- * @param predicateValue The object that is compared to the source
- * @param disableText The text that is displayed when the comparison fails
- * @param hideOnDisable Whether the option should be hidden when the comparison fails
- * @param customizer The customizer function that should be used when comparing the two objects (lodash isMatchWith only)
- * @constructor
- *
- * example:
- *  predicateObject = { 'Agility': 5, 'Strength': 10 }
- *  predicateValue = { 'Agility': 5 }
- *  comparisonFunction = isMatch
- *  should result in a match
- *
- *  predicateObject = { 'Agility': 5, 'Strength': 10 }
- *  predicateValue = { 'Agility': 8 }
- *  comparisonFunction = isMatchWith
- *  customizer = (objValue, srcValue) => objValue >= srcValue
- *  should result in a match
- */
-const ComparisonResolver = ({
-  comparisonFunction,
-  predicateObject,
-  predicateValue,
-  disableText,
-  hideOnDisable,
-  customizer
-}: ComparisonInput): ComparisonResult => {
-  const isEnabled = comparisonFunction(
-    predicateObject || {},
-    predicateValue,
-    customizer
-  )
-  return {
-    isDisabled: !isEnabled,
-    isHidden: hideOnDisable ? !isEnabled : false,
-    disableTexts: disableText ? [disableText] : []
-  }
-}
-
-/**
- * Resolves the commutative comparison between the predicate and the game state.
- * Reduces the result of the comparison to a single comparison result.
- *
- * @param predicates
- * @param gameState
- * @constructor
- */
-export const Comparator = (
-  predicates: Predicate[] | undefined,
-  gameState: Instance<typeof GameState> | null
-): ComparisonResult => {
-  if (predicates === undefined || gameState === null) {
-    return { isDisabled: false, isHidden: false }
-  }
-
-  return predicates
-    .map((predicate) => {
-      const comparisonInput = resolveComparisonInput(predicate, gameState)
-      if (comparisonInput === undefined) {
-        console.warn('Predicate not implemented')
-        return { isDisabled: false, isHidden: false }
-      }
-
-      return ComparisonResolver(comparisonInput)
-    })
-    .reduce((acc, curr) => {
-      return {
-        isDisabled: acc.isDisabled && curr.isDisabled,
-        isHidden: acc.isHidden || curr.isHidden,
-        disableTexts: acc.disableTexts?.concat(curr.disableTexts || [])
-      }
-    })
-}
-
-const customiseResolver = (condition: Condition) => {
+const comparatorFunctionResolver = (
+  condition: Condition
+): ((objValue: any, srcValue: any) => boolean) => {
   switch (condition) {
     case Condition.EQUALS:
       return (objValue: any, srcValue: any) => objValue === srcValue
@@ -139,30 +34,28 @@ const customiseResolver = (condition: Condition) => {
   }
 }
 
-const resolveComparisonInput = (
-  predicate: Predicate,
-  gameState: Instance<typeof GameState>
-): ComparisonInput | undefined => {
-  switch (predicate.comparator) {
-    case ComparatorType.CHARACTER_STAT:
-      return {
-        customizer: customiseResolver(predicate.condition),
-        hideOnDisable: predicate.hideOnDisable,
-        comparisonFunction: isMatchWith,
-        predicateObject: resolveCharacter(predicate, gameState)?.stats,
-        predicateValue: predicate.value,
-        disableText: predicate.disableText
-      }
-    default:
-      return undefined
-  }
+// @ts-ignore
+const resolveScene = (
+  gameState: Instance<typeof GameState>,
+  stateOwnerId?: string
+) => {
+  const sceneId = stateOwnerId || gameState.currentSceneId
+  const scene = resolveIdentifier(Scene, gameState.storyBook, sceneId)
+  return scene !== undefined ? getSnapshot(scene) : undefined
 }
 
-const resolveCharacter = (
-  predicate: Predicate,
-  gameState: Instance<typeof GameState>
+/**
+ * Resolves a character from the game state.
+ * If no stateOwnerId is provided, the current character is resolved.
+ *
+ * @param gameState
+ * @param stateOwnerId
+ */
+const resolveCharacterB = (
+  gameState: Instance<typeof GameState>,
+  stateOwnerId?: string
 ) => {
-  const charId = predicate.stateOwnerId || gameState.currentCharacterId
+  const charId = stateOwnerId || gameState.currentCharacterId
   const character = resolveIdentifier(
     Character,
     gameState.characterRoster,
@@ -171,12 +64,78 @@ const resolveCharacter = (
   return character !== undefined ? getSnapshot(character) : undefined
 }
 
-// @ts-ignore
-const resolveScene = (
-  predicate: Predicate,
+/**
+ * Resolves the value for a single comparison condition.
+ * @param comparisonCondition
+ * @param gameState
+ */
+const resolveComparatorValue = (
+  comparisonCondition: ComparisonCondition,
   gameState: Instance<typeof GameState>
 ) => {
-  const sceneId = predicate.stateOwnerId || gameState.currentSceneId
-  const scene = resolveIdentifier(Scene, gameState.storyBook, sceneId)
-  return scene !== undefined ? getSnapshot(scene) : undefined
+  switch (comparisonCondition.comparator) {
+    case ComparatorType.CHARACTER_STAT:
+      return resolveCharacterB(gameState, comparisonCondition.stateOwnerId)
+        ?.stats[comparisonCondition.name]
+    default:
+      return undefined
+  }
+}
+
+/**
+ * Evaluates a single predicate and returns the result.
+ *
+ * NOTE: This function uses includes to find if any predicates are true since the
+ * spacetime complexity is MAX O(n) while the complexity for reduce is MIN O(n).
+ * This allows for the developer to use optimize the predicate list by placing the most likely
+ * to be fail predicates at the beginning of the list.
+ *
+ * @param predicate
+ * @param gameState
+ */
+const testSinglePredicate = (
+  predicate: Predicate,
+  gameState: Instance<typeof GameState>
+): PredicateComparisonResult => {
+  //
+  const comparisonFail: boolean = predicate.conditions
+    .map((condition) => {
+      const evaluationFunction = comparatorFunctionResolver(
+        condition.evaluationCondition
+      )
+      const comparatorValue = resolveComparatorValue(condition, gameState)
+      return evaluationFunction(comparatorValue, condition.value)
+    })
+    .includes(false)
+
+  return {
+    isDisabled: comparisonFail,
+    isHidden: !!(predicate.hideOnDisable && comparisonFail),
+    disableTexts:
+      predicate.disableText && comparisonFail ? [predicate.disableText] : []
+  }
+}
+
+/**
+ * A list of predicates that are evaluated as a group. If any of the predicates are false, the group is false.
+ * @param predicates
+ * @param gameState
+ * @returns if the group is disabled, hidden, and the concatenated list of disable texts
+ */
+export const Comparator = (
+  predicates: Predicate[] | undefined,
+  gameState: Instance<typeof GameState> | null
+): PredicateComparisonResult => {
+  if (predicates === undefined || gameState === null) {
+    return { isDisabled: false, isHidden: false, disableTexts: [] }
+  }
+  return predicates
+    .map((predicate) => testSinglePredicate(predicate, gameState))
+    .reduce((acc, curr) => {
+      return {
+        isDisabled: acc.isDisabled && curr.isDisabled,
+        isHidden: acc.isHidden || curr.isHidden,
+        disableTexts: acc.disableTexts?.concat(curr.disableTexts)
+      }
+    })
 }

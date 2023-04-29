@@ -1,4 +1,4 @@
-import { Predicate } from '../Predicate/Predicate'
+import { Predicate } from '../Predicate'
 import { Instance } from 'mobx-state-tree'
 import { GameState } from '../GameState/GameState'
 

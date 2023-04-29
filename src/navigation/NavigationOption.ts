@@ -1,4 +1,4 @@
-import { Predicate } from '../Predicate/Predicate'
+import { Predicate } from '../Predicate'
 
 export interface NavigationOption {
   destinationRoomId: string
